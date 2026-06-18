@@ -3,6 +3,11 @@
 import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
 
+function imgProxy(url: string) {
+  if (!url || url === "/placeholder.jpg" || url === "#") return url;
+  return `/api/img?url=${encodeURIComponent(url)}`;
+}
+
 type Props = {
   product: Product;
   isFavorited: boolean;
@@ -31,7 +36,7 @@ export function ProductCard({ product, isFavorited, onFavorite, onClick }: Props
         {product.coverUrl && product.coverUrl !== "/placeholder.jpg" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.coverUrl}
+            src={imgProxy(product.coverUrl)}
             alt={product.nome}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"

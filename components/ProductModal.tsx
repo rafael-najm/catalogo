@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+
+function imgProxy(url: string) {
+  if (!url || url === "/placeholder.jpg" || url === "#") return url;
+  return `/api/img?url=${encodeURIComponent(url)}`;
+}
 import { X, Heart, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Product } from "@/lib/types";
 import type { ProductDetailResponse } from "@/lib/types";
@@ -78,7 +83,7 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={currentPhoto}
+                src={imgProxy(currentPhoto)}
                 alt={product.nome}
                 className="w-full h-full object-contain"
                 loading="lazy"
