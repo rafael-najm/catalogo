@@ -3,11 +3,13 @@ import { ALBUMS, type Album } from "@/config/albums";
 import type { Product, SyncResponse } from "@/lib/types";
 
 const SELECTORS = {
+  // Páginas /albums — link principal do álbum
   albumLink: "a.album__main",
   albumName: ".album__name, .album__title, [class*='album__name'], [class*='album__title']",
-  // Ordem: img dentro do link, depois qualquer img com classe album
   albumCover: "img",
   albumLinkFallback: 'a[href*="/albums/"]',
+  // Páginas /categories — cada item é um link para um álbum individual
+  categoryLink: 'a[href*="/albums/"]',
 };
 
 const HEADERS = {
@@ -37,15 +39,33 @@ async function authenticateAlbum(baseUrl: string, senha: string): Promise<string
   }
 }
 
-function parseAlbumsPage(html: string, baseUrl: string, albumNome: string): Omit<Product, "categoria" | "albumNome" | "albumUrl">[] {
-  const $ = cheerio.load(html);
+function resolveUrl(href: string, origin: string): string {
+  if (href.startsWith("http")) return href;
+  if (href.startsWith("//")) return `https:${href}`;
+  return `${origin}${href.startsWith("/") ? "" : "/"}${href}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractCover($el: ReturnType<typeof cheerio.load>, imgEl: any): string {
+  const $img = $el(imgEl);
+  const raw =
+    $img.attr("data-src") ||
+    $img.attr("data-original") ||
+    $img.attr("data-lazy") ||
+    $img.attr("src") ||
+    "";
+  return raw.startsWith("//") ? `https:${raw}` : raw;
+}
+
+function parseProductLinks(
+  $: ReturnType<typeof cheerio.load>,
+  origin: string,
+  albumNome: string,
+  linkSelector: string
+): Omit<Product, "categoria" | "albumNome" | "albumUrl">[] {
   const produtos: Omit<Product, "categoria" | "albumNome" | "albumUrl">[] = [];
-  const origin = (() => { try { const u = new URL(baseUrl); return `${u.protocol}//${u.host}`; } catch { return ""; } })();
 
-  let links = $(SELECTORS.albumLink);
-  if (links.length === 0) links = $(SELECTORS.albumLinkFallback);
-
-  links.each((_, el) => {
+  $(linkSelector).each((_, el) => {
     const $el = $(el);
     const href = $el.attr("href") ?? "";
     if (!/\/albums\/\d+/.test(href)) return;
@@ -56,25 +76,35 @@ function parseAlbumsPage(html: string, baseUrl: string, albumNome: string): Omit
       $el.text().trim() ||
       "Produto";
 
-    // Yupoo usa lazy loading: a URL real fica em data-src, data-original ou src
-    const coverEl = $el.find(SELECTORS.albumCover).first();
-    const rawCover =
-      coverEl.attr("data-src") ||
-      coverEl.attr("data-original") ||
-      coverEl.attr("data-lazy") ||
-      coverEl.attr("src") ||
-      "";
-    // Garante protocolo absoluto (alguns src vêm sem "https:")
-    const coverUrl = rawCover.startsWith("//") ? `https:${rawCover}` : rawCover;
+    const imgEl = $el.find(SELECTORS.albumCover).get(0);
+    const coverUrl = imgEl ? extractCover($, imgEl) : "";
 
-    const productUrl = href.startsWith("http") ? href : `${origin}${href}`;
+    const productUrl = resolveUrl(href, origin);
     const id = `${albumNome}-${href.replace(/\D/g, "")}`;
 
-    if (nome && productUrl) {
-      produtos.push({ id, nome, coverUrl: coverUrl || "/placeholder.jpg", productUrl });
+    if (productUrl) {
+      produtos.push({ id, nome: nome || "Produto", coverUrl: coverUrl || "/placeholder.jpg", productUrl });
     }
   });
 
+  return produtos;
+}
+
+function parseAlbumsPage(html: string, baseUrl: string, albumNome: string): Omit<Product, "categoria" | "albumNome" | "albumUrl">[] {
+  const $ = cheerio.load(html);
+  const origin = (() => { try { const u = new URL(baseUrl); return `${u.protocol}//${u.host}`; } catch { return ""; } })();
+  const isCategory = /\/categories\//.test(baseUrl);
+
+  if (isCategory) {
+    // Páginas de categoria: todos os links para /albums/NNN são produtos
+    return parseProductLinks($, origin, albumNome, SELECTORS.categoryLink);
+  }
+
+  // Páginas /albums: tenta seletor principal, depois fallback genérico
+  let produtos = parseProductLinks($, origin, albumNome, SELECTORS.albumLink);
+  if (produtos.length === 0) {
+    produtos = parseProductLinks($, origin, albumNome, SELECTORS.albumLinkFallback);
+  }
   return produtos;
 }
 

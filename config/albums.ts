@@ -31,6 +31,9 @@ export const ALBUMS: Album[] = [
   { nome: "Shoes Qiqiyg", url: "http://shoes.qiqiyg.com/albums",                           categoria: "Roupas" },
   // Bolsas
   { nome: "Bag001",       url: "https://bag001.x.yupoo.com/albums",      senha: "888999",  categoria: "Bolsas" },
+  // Categorias (formato /categories/NNN — parser separado no sync)
+  { nome: "Yolo66",        url: "https://yolo66.x.yupoo.com/categories/4649419?page=1",       categoria: "Tênis" },
+  { nome: "Deshengxing",   url: "https://deshengxing.x.yupoo.com/categories/4161021?page=2",  categoria: "Tênis" },
 ];
 
 export const CATEGORIAS: Categoria[] = ["Tênis", "Bolsas", "Roupas", "Infantil", "Luxo"];
