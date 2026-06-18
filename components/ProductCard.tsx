@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
 
@@ -30,13 +29,12 @@ export function ProductCard({ product, isFavorited, onFavorite, onClick }: Props
       {/* Cover image */}
       <div className="relative aspect-square overflow-hidden bg-[#0b0c0f]">
         {product.coverUrl && product.coverUrl !== "/placeholder.jpg" ? (
-          <Image
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
             src={product.coverUrl}
             alt={product.nome}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            unoptimized
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

@@ -5,7 +5,8 @@ import type { Product, SyncResponse } from "@/lib/types";
 const SELECTORS = {
   albumLink: "a.album__main",
   albumName: ".album__name, .album__title, [class*='album__name'], [class*='album__title']",
-  albumCover: "img.album__img, img[class*='album__img'], .album__cover img",
+  // Ordem: img dentro do link, depois qualquer img com classe album
+  albumCover: "img",
   albumLinkFallback: 'a[href*="/albums/"]',
 };
 
@@ -55,9 +56,16 @@ function parseAlbumsPage(html: string, baseUrl: string, albumNome: string): Omit
       $el.text().trim() ||
       "Produto";
 
+    // Yupoo usa lazy loading: a URL real fica em data-src, data-original ou src
     const coverEl = $el.find(SELECTORS.albumCover).first();
-    const coverUrl =
-      coverEl.attr("data-src") || coverEl.attr("src") || coverEl.attr("data-original") || "";
+    const rawCover =
+      coverEl.attr("data-src") ||
+      coverEl.attr("data-original") ||
+      coverEl.attr("data-lazy") ||
+      coverEl.attr("src") ||
+      "";
+    // Garante protocolo absoluto (alguns src vêm sem "https:")
+    const coverUrl = rawCover.startsWith("//") ? `https:${rawCover}` : rawCover;
 
     const productUrl = href.startsWith("http") ? href : `${origin}${href}`;
     const id = `${albumNome}-${href.replace(/\D/g, "")}`;
