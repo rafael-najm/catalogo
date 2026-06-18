@@ -6,25 +6,16 @@
   --font-mono: var(--font-mono);
 }
 
+* { box-sizing: border-box; }
+
 body {
-  background: #0b0c0f;
-  color: #f3f1ec;
+  background: #0a0a0a;
+  color: #f0ede8;
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
-.font-display {
-  font-family: var(--font-display), sans-serif;
-}
+.font-display { font-family: var(--font-display), sans-serif; }
+.font-mono    { font-family: var(--font-mono), monospace; }
 
-.font-mono {
-  font-family: var(--font-mono), monospace;
-}
-
-/* Hide scrollbar for category rail on mobile */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }

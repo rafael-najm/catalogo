@@ -1,14 +1,8 @@
 "use client";
-
 import { useEffect, useState, useCallback } from "react";
-
-function imgProxy(url: string) {
-  if (!url || url === "/placeholder.jpg" || url === "#") return url;
-  return `/api/img?url=${encodeURIComponent(url)}`;
-}
 import { X, Heart, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
-import type { Product } from "@/lib/types";
-import type { ProductDetailResponse } from "@/lib/types";
+import type { Product, ProductDetailResponse } from "@/lib/types";
+import { imgProxy } from "./ProductCard";
 
 type Props = {
   product: Product | null;
@@ -23,32 +17,27 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
   const [photoIdx, setPhotoIdx] = useState(0);
 
   useEffect(() => {
-    if (!product) {
-      setDetail(null);
-      setPhotoIdx(0);
-      return;
-    }
+    if (!product) { setDetail(null); setPhotoIdx(0); return; }
     setLoading(true);
     setPhotoIdx(0);
-    const qs = new URLSearchParams({
-      url: product.productUrl,
-      cover: product.coverUrl,
-    });
+    const qs = new URLSearchParams({ url: product.productUrl, cover: product.coverUrl });
     fetch(`/api/product/${encodeURIComponent(product.id)}?${qs}`)
-      .then((r) => r.json())
+      .then(r => r.json())
       .then((d: ProductDetailResponse) => setDetail(d))
       .catch(() => setDetail({ fotos: [product.coverUrl], nome: product.nome, productUrl: product.productUrl }))
       .finally(() => setLoading(false));
   }, [product]);
 
-  const handleKey = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowRight" && detail) setPhotoIdx((i) => Math.min(i + 1, detail.fotos.length - 1));
-      if (e.key === "ArrowLeft") setPhotoIdx((i) => Math.max(i - 1, 0));
-    },
-    [onClose, detail]
-  );
+  const fotos = detail?.fotos ?? (product ? [product.coverUrl] : []);
+
+  const prev = useCallback(() => setPhotoIdx(i => Math.max(i - 1, 0)), []);
+  const next = useCallback(() => setPhotoIdx(i => Math.min(i + 1, fotos.length - 1)), [fotos.length]);
+
+  const handleKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") onClose();
+    if (e.key === "ArrowRight") next();
+    if (e.key === "ArrowLeft") prev();
+  }, [onClose, next, prev]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
@@ -57,97 +46,98 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
 
   if (!product) return null;
 
-  const fotos = detail?.fotos ?? [product.coverUrl];
   const currentPhoto = fotos[photoIdx] ?? product.coverUrl;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm p-0 sm:p-6"
       onClick={onClose}
     >
       <div
-        className="relative bg-[#15171c] border border-[#2a2d35] rounded-xl overflow-hidden w-full max-w-3xl max-h-[90vh] flex flex-col md:flex-row"
-        onClick={(e) => e.stopPropagation()}
+        className="relative bg-[#0f0f0f] border border-white/8 w-full sm:rounded-lg sm:max-w-2xl max-h-[95vh] flex flex-col sm:flex-row overflow-hidden"
+        onClick={e => e.stopPropagation()}
       >
         {/* Close */}
         <button
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-[#0b0c0f]/80 border border-[#2a2d35] hover:border-[#cf9d4f] text-[#f3f1ec]"
           onClick={onClose}
+          className="absolute top-3 right-3 z-20 p-1.5 bg-black/70 rounded-full text-white/50 hover:text-white transition-colors"
         >
-          <X size={16} />
+          <X size={14} />
         </button>
 
         {/* Photo area */}
-        <div className="relative w-full md:w-1/2 aspect-square bg-[#0b0c0f] flex-shrink-0">
+        <div className="relative w-full sm:w-[55%] aspect-square bg-[#0a0a0a] flex-shrink-0">
           {loading ? (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-[#cf9d4f] border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border border-[#c8a96e] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={currentPhoto}
+              src={imgProxy(currentPhoto)}
+              alt={product.nome}
+              className="w-full h-full object-contain"
+            />
+          )}
+
+          {/* Arrows */}
+          {fotos.length > 1 && !loading && (
             <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                key={currentPhoto}
-                src={imgProxy(currentPhoto)}
-                alt={product.nome}
-                className="w-full h-full object-contain"
-              />
-              {/* Navigation arrows */}
-              {fotos.length > 1 && (
-                <>
-                  <button
-                    className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[#0b0c0f]/80 border border-[#2a2d35] text-[#f3f1ec] disabled:opacity-30"
-                    onClick={() => setPhotoIdx((i) => Math.max(i - 1, 0))}
-                    disabled={photoIdx === 0}
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-[#0b0c0f]/80 border border-[#2a2d35] text-[#f3f1ec] disabled:opacity-30"
-                    onClick={() => setPhotoIdx((i) => Math.min(i + 1, fotos.length - 1))}
-                    disabled={photoIdx === fotos.length - 1}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                  {/* Dots */}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
-                    {fotos.map((_, i) => (
-                      <button
-                        key={i}
-                        className={`w-1.5 h-1.5 rounded-full transition-colors ${i === photoIdx ? "bg-[#cf9d4f]" : "bg-[#2a2d35]"}`}
-                        onClick={() => setPhotoIdx(i)}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
+              <button
+                onClick={prev} disabled={photoIdx === 0}
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/70 text-white disabled:opacity-20 hover:text-[#c8a96e] transition-colors"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={next} disabled={photoIdx === fotos.length - 1}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/70 text-white disabled:opacity-20 hover:text-[#c8a96e] transition-colors"
+              >
+                <ChevronRight size={16} />
+              </button>
             </>
+          )}
+
+          {/* Thumbnails */}
+          {fotos.length > 1 && !loading && (
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 px-4 overflow-x-auto scrollbar-hide">
+              {fotos.slice(0, 10).map((f, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPhotoIdx(i)}
+                  className={`w-9 h-9 flex-shrink-0 overflow-hidden transition-all ${
+                    i === photoIdx ? "ring-1 ring-[#c8a96e] opacity-100" : "opacity-40 hover:opacity-70"
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imgProxy(f)} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Info area */}
-        <div className="flex flex-col p-6 flex-1 overflow-y-auto">
-          {/* Tag strip */}
-          <div className="border border-dashed border-[#2a2d35] rounded px-3 py-2 mb-4">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-[#cf9d4f] mb-0.5">
-              {product.categoria}
-            </div>
-            <div className="font-mono text-[10px] text-[#555b6b]">{product.albumNome}</div>
-          </div>
+        {/* Info */}
+        <div className="flex flex-col p-6 flex-1 overflow-y-auto min-h-0">
+          <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-[#c8a96e] mb-2">
+            {product.categoria} · {product.albumNome}
+          </p>
+          <h3 className="font-display text-2xl font-bold text-white uppercase leading-tight mb-1">
+            {product.nome}
+          </h3>
+          <p className="font-mono text-[9px] text-white/20 mb-auto">#{product.id.slice(-8)}</p>
 
-          <h2 className="text-[#f3f1ec] text-xl font-bold leading-tight mb-2">{product.nome}</h2>
-          <p className="font-mono text-[10px] text-[#555b6b] mb-6 uppercase">#{product.id.slice(-8)}</p>
-
-          <div className="mt-auto space-y-3">
+          <div className="mt-8 space-y-2.5">
             <button
               onClick={() => onFavorite(product.id)}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium border transition-colors ${
                 isFavorited
-                  ? "border-[#d6552f] text-[#d6552f] bg-[#d6552f]/10"
-                  : "border-[#2a2d35] text-[#f3f1ec] hover:border-[#d6552f] hover:text-[#d6552f]"
+                  ? "border-[#c94a2a] text-[#c94a2a] bg-[#c94a2a]/8"
+                  : "border-white/15 text-white/60 hover:border-[#c94a2a] hover:text-[#c94a2a]"
               }`}
             >
-              <Heart size={14} className={isFavorited ? "fill-[#d6552f]" : ""} />
+              <Heart size={13} className={isFavorited ? "fill-[#c94a2a]" : ""} />
               {isFavorited ? "Favoritado" : "Favoritar"}
             </button>
 
@@ -156,9 +146,9 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
                 href={product.productUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-[#cf9d4f] text-[#0b0c0f] text-sm font-semibold hover:bg-[#eccb8e] transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold bg-[#c8a96e] text-[#0a0a0a] hover:bg-white transition-colors"
               >
-                <ExternalLink size={14} />
+                <ExternalLink size={13} />
                 Ver no catálogo original
               </a>
             )}

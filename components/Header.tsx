@@ -1,43 +1,50 @@
 "use client";
+import { Search, X } from "lucide-react";
+import { CATEGORIAS } from "@/config/albums";
 
-import Link from "next/link";
-import { SearchBar } from "./SearchBar";
-
-type Props = {
-  search: string;
-  onSearch: (v: string) => void;
-};
+type Props = { search: string; onSearch: (v: string) => void };
 
 export function Header({ search, onSearch }: Props) {
   return (
-    <header className="sticky top-0 z-40 backdrop-blur-md bg-[#0b0c0f]/80 border-b border-[#2a2d35]">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
+    <header className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0a0a0a]/85 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-5 h-14 flex items-center gap-6">
         {/* Logo */}
-        <Link href="/" className="flex-shrink-0 flex items-center gap-2 group">
-          <div className="w-7 h-7 border border-[#cf9d4f] rounded flex items-center justify-center">
-            <span className="font-mono text-[10px] text-[#cf9d4f] font-bold">M</span>
+        <a href="/" className="flex items-center gap-2.5 flex-shrink-0">
+          <div className="w-6 h-6 border border-[#c8a96e] flex items-center justify-center">
+            <span className="font-mono text-[9px] text-[#c8a96e] font-bold leading-none">M</span>
           </div>
-          <span className="font-display text-[#f3f1ec] font-bold tracking-wide text-sm hidden sm:block">
-            MANIFESTO
+          <span className="font-display text-white font-semibold tracking-[0.15em] text-sm uppercase hidden sm:block">
+            Manifesto
           </span>
-        </Link>
+        </a>
 
         {/* Search */}
-        <div className="flex-1 max-w-sm">
-          <SearchBar value={search} onChange={onSearch} />
+        <div className="relative flex-1 max-w-xs">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
+          <input
+            value={search}
+            onChange={e => onSearch(e.target.value)}
+            placeholder="Buscar..."
+            className="w-full bg-white/5 border border-white/10 rounded-sm pl-8 pr-7 py-1.5 text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-[#c8a96e]/60 transition-colors"
+          />
+          {search && (
+            <button onClick={() => onSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white">
+              <X size={11} />
+            </button>
+          )}
         </div>
 
         {/* Nav */}
-        <nav className="hidden md:flex items-center gap-5 ml-auto">
-          <Link href="/" className="font-mono text-[11px] uppercase tracking-widest text-[#555b6b] hover:text-[#f3f1ec] transition-colors">
-            Início
-          </Link>
-          <Link href="#catalogo" className="font-mono text-[11px] uppercase tracking-widest text-[#555b6b] hover:text-[#f3f1ec] transition-colors">
-            Catálogo
-          </Link>
-          <Link href="#favoritos" className="font-mono text-[11px] uppercase tracking-widest text-[#555b6b] hover:text-[#f3f1ec] transition-colors">
-            Favoritos
-          </Link>
+        <nav className="hidden md:flex items-center gap-6 ml-auto">
+          {CATEGORIAS.map(c => (
+            <a
+              key={c}
+              href={`#${c.toLowerCase()}`}
+              className="font-mono text-[10px] uppercase tracking-[0.15em] text-white/40 hover:text-[#c8a96e] transition-colors"
+            >
+              {c}
+            </a>
+          ))}
         </nav>
       </div>
     </header>
