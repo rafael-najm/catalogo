@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
 
-function imgProxy(url: string) {
+export function imgProxy(url: string) {
   if (!url || url === "/placeholder.jpg" || url === "#") return url;
   return `/api/img?url=${encodeURIComponent(url)}`;
 }
@@ -16,6 +17,33 @@ type Props = {
 };
 
 export function ProductCard({ product, isFavorited, onFavorite, onClick }: Props) {
+  const [coverSrc, setCoverSrc] = useState(() =>
+    product.coverUrl && product.coverUrl !== "/placeholder.jpg"
+      ? imgProxy(product.coverUrl)
+      : ""
+  );
+  const [failed, setFailed] = useState(false);
+
+  // Quando a capa falha, busca as fotos reais do produto e usa a primeira encontrada
+  function handleImgError() {
+    if (failed) return; // já tentou, desiste
+    setFailed(true);
+
+    const qs = new URLSearchParams({ url: product.productUrl, cover: product.coverUrl });
+    fetch(`/api/product/${encodeURIComponent(product.id)}?${qs}`)
+      .then((r) => r.json())
+      .then((d: { fotos?: string[] }) => {
+        const fotos = d.fotos ?? [];
+        // Tenta cada foto até achar uma diferente da capa original que falhou
+        const alternativa = fotos.find((f) => f !== product.coverUrl && f !== "/placeholder.jpg");
+        if (alternativa) {
+          setCoverSrc(imgProxy(alternativa));
+          setFailed(false); // dá mais uma chance de carregar
+        }
+      })
+      .catch(() => {}); // silencia — o card fica sem foto
+  }
+
   return (
     <div
       className="group relative bg-[#15171c] border border-[#2a2d35] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 hover:border-[#cf9d4f] hover:shadow-[0_0_20px_rgba(207,157,79,0.1)] hover:-translate-y-0.5"
@@ -33,25 +61,15 @@ export function ProductCard({ product, isFavorited, onFavorite, onClick }: Props
 
       {/* Cover image */}
       <div className="relative aspect-square overflow-hidden bg-[#0b0c0f]">
-        {product.coverUrl && product.coverUrl !== "/placeholder.jpg" ? (
+        {coverSrc && !failed ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={imgProxy(product.coverUrl)}
+            key={coverSrc}
+            src={coverSrc}
             alt={product.nome}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onError={(e) => {
-              const t = e.currentTarget;
-              t.onerror = null;
-              t.style.display = "none";
-              const parent = t.parentElement;
-              if (parent && !parent.querySelector(".img-fallback")) {
-                const fb = document.createElement("div");
-                fb.className = "img-fallback w-full h-full flex items-center justify-center";
-                fb.innerHTML = `<span style="font-family:monospace;font-size:10px;color:#2a2d35;text-transform:uppercase;letter-spacing:0.1em">sem foto</span>`;
-                parent.appendChild(fb);
-              }
-            }}
+            onError={handleImgError}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
