@@ -205,7 +205,7 @@ export function CatalogClient({ data }: { data: SyncResponse }) {
             Manifesto — Vitrine Yupoo
           </span>
           {data.cachedAt && (
-            <span className="font-mono text-[10px] text-[#2a2d35]">
+            <span className="font-mono text-[10px] text-[#2a2d35]" suppressHydrationWarning>
               sync {new Date(data.cachedAt).toLocaleTimeString("pt-BR")}
             </span>
           )}
