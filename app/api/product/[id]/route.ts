@@ -12,29 +12,48 @@ const HEADERS = {
   Referer: "https://x.yupoo.com/",
 };
 
-// Seletores para fotos dentro de um álbum individual
+// Atributos de imagem onde o Yupoo coloca a URL real (em ordem de prioridade)
+const IMG_ATTRS = ["data-src", "data-original", "data-lazy", "data-url", "src"];
+
+// Seletores CSS tentados em ordem — o primeiro que retornar resultados é usado
 const PHOTO_SELECTORS = [
   ".photo__img img",
   "img.photo__img",
-  "[class*='photo'] img",
-  ".album-photo img",
-  "img[class*='photo']",
-  ".viewer__img img",
-  "img[src*='photo']",
+  ".showalbum__children img",
+  ".showalbum__children .showalbum__photo img",
+  "[class*='showalbum'] img",
+  "[class*='photo__'] img",
+  "[class*='album__'] img",
+  "figure img",
+  // Fallback amplo: qualquer img cujo src/data-src aponte para o CDN do Yupoo
+  "img",
 ];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractSrc($el: cheerio.Cheerio<any>, $: cheerio.CheerioAPI): string {
+  for (const attr of IMG_ATTRS) {
+    const val = $el.attr(attr) ?? "";
+    if (!val) continue;
+    // Normaliza URLs relativas de protocolo (//cdn.yupoo.com/...)
+    const normalized = val.startsWith("//") ? `https:${val}` : val;
+    // Só aceita URLs do CDN do Yupoo (evita placeholders 1x1 do lazy loader)
+    if (normalized.startsWith("http") && normalized.includes("yupoo")) {
+      return normalized;
+    }
+  }
+  return "";
+}
 
 function parsePhotos(html: string): string[] {
   const $ = cheerio.load(html);
+  const seen = new Set<string>();
   const fotos: string[] = [];
 
   for (const selector of PHOTO_SELECTORS) {
     $(selector).each((_, el) => {
-      const src =
-        $(el).attr("data-src") ||
-        $(el).attr("src") ||
-        $(el).attr("data-original") ||
-        "";
-      if (src && src.startsWith("http") && !fotos.includes(src)) {
+      const src = extractSrc($(el), $);
+      if (src && !seen.has(src)) {
+        seen.add(src);
         fotos.push(src);
       }
     });
@@ -51,48 +70,54 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const productUrl = searchParams.get("url");
+  const coverUrl = searchParams.get("cover") ?? "";
 
   if (!productUrl) {
     return NextResponse.json({ error: "url param required" }, { status: 400 });
   }
 
-  // Produtos demo não têm URL real
   if (productUrl === "#") {
-    const body: ProductDetailResponse = {
+    return NextResponse.json({
       fotos: [
         "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=800&fit=crop",
         "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=800&h=800&fit=crop",
       ],
       nome: id,
       productUrl,
-    };
-    return NextResponse.json(body);
+    } satisfies ProductDetailResponse);
   }
 
   try {
     const res = await fetch(productUrl, {
       headers: HEADERS,
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok) {
-      return NextResponse.json({ error: `HTTP ${res.status}` }, { status: res.status });
+      // Se a página falhar, devolve pelo menos a capa para o modal não ficar vazio
+      return NextResponse.json({
+        fotos: coverUrl ? [coverUrl] : [],
+        nome: id,
+        productUrl,
+      } satisfies ProductDetailResponse);
     }
 
     const html = await res.text();
     const fotos = parsePhotos(html);
 
-    const body: ProductDetailResponse = {
-      fotos: fotos.length > 0 ? fotos : ["/placeholder.jpg"],
+    // Garante que a capa aparece primeiro se não foi encontrada no parse
+    if (coverUrl && !fotos.includes(coverUrl)) fotos.unshift(coverUrl);
+
+    return NextResponse.json(
+      { fotos: fotos.length > 0 ? fotos : [coverUrl].filter(Boolean), nome: id, productUrl } satisfies ProductDetailResponse,
+      { headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=7200" } }
+    );
+  } catch {
+    return NextResponse.json({
+      fotos: coverUrl ? [coverUrl] : [],
       nome: id,
       productUrl,
-    };
-
-    return NextResponse.json(body, {
-      headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=7200" },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    } satisfies ProductDetailResponse);
   }
 }

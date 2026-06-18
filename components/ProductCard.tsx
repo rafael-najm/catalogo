@@ -40,6 +40,18 @@ export function ProductCard({ product, isFavorited, onFavorite, onClick }: Props
             alt={product.nome}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            onError={(e) => {
+              const t = e.currentTarget;
+              t.onerror = null;
+              t.style.display = "none";
+              const parent = t.parentElement;
+              if (parent && !parent.querySelector(".img-fallback")) {
+                const fb = document.createElement("div");
+                fb.className = "img-fallback w-full h-full flex items-center justify-center";
+                fb.innerHTML = `<span style="font-family:monospace;font-size:10px;color:#2a2d35;text-transform:uppercase;letter-spacing:0.1em">sem foto</span>`;
+                parent.appendChild(fb);
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

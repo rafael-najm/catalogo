@@ -30,7 +30,11 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
     }
     setLoading(true);
     setPhotoIdx(0);
-    fetch(`/api/product/${encodeURIComponent(product.id)}?url=${encodeURIComponent(product.productUrl)}`)
+    const qs = new URLSearchParams({
+      url: product.productUrl,
+      cover: product.coverUrl,
+    });
+    fetch(`/api/product/${encodeURIComponent(product.id)}?${qs}`)
       .then((r) => r.json())
       .then((d: ProductDetailResponse) => setDetail(d))
       .catch(() => setDetail({ fotos: [product.coverUrl], nome: product.nome, productUrl: product.productUrl }))
@@ -83,10 +87,10 @@ export function ProductModal({ product, isFavorited, onFavorite, onClose }: Prop
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
+                key={currentPhoto}
                 src={imgProxy(currentPhoto)}
                 alt={product.nome}
                 className="w-full h-full object-contain"
-                loading="lazy"
               />
               {/* Navigation arrows */}
               {fotos.length > 1 && (
